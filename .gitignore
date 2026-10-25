@@ -1,0 +1,22 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Django
+db.sqlite3
+db.sqlite3-journal
+*.log
+
+# Переменные окружения
+.env
+
+# VS Code
+.vscode/
+
+# React / Frontend (на будущее)
+node_modules/
+dist/
+build/
