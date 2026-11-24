@@ -6,70 +6,99 @@
   const lines = document.getElementById('estimate-lines');
   const money = new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 });
 
-  // Все тарифы из ТЗ. Первые три стоимости зависят от площади дома.
-  const rates = {
-    'Каркас': { base: 25000, insulation: 3000, heat: 3500 },
-    'Брус': { base: 35000, insulation: 4000, heat: 3500 },
-    'Газобетон': { base: 50000, insulation: 4000, heat: 5000 },
-    'Кирпич': { base: 80000, insulation: 4000, heat: 5000 }
+  // 1. Словарь для связи русского названия на фронте с английским ключом на бэке
+  const materialMap = {
+    'Каркас': 'frame',
+    'Брус': 'timber',
+    'Газобетон': 'gas',
+    'Кирпич': 'brick'
   };
-  const fixed = {
-    electric: ['Электричество', 150000],
-    water: ['Вода', 250000],
-    septic: ['Септик', 200000]
-  };
+  
   let projectDescription = '';
+  let timeoutId; // Переменная для таймера задержки
 
-  function calculate() {
+  // 2. Функция стала асинхронной (async)
+  async function calculate() {
     const input = new FormData(form);
     const area = Number(input.get('area'));
-    const valid = area > 0 && form.elements.area.validity.valid;
+    
     lines.replaceChildren();
     document.getElementById('gas-note').hidden = !input.has('gas');
-    if (!valid) {
+    
+    if (!(area > 0) || !form.elements.area.validity.valid) {
       total.textContent = 'Укажите площадь';
       summary.textContent = '';
       projectDescription = '';
       return;
     }
-    const material = input.get('material');
-    const floors = Number(input.get('floors'));
-    const rate = rates[material];
-    const breakdown = [['Базовая стоимость', area * rate.base]];
-    if (floors === 1) breakdown.push(['Скидка за один этаж (5 %)', -area * rate.base * 0.05]);
-    if (input.has('insulation')) breakdown.push(['Утепление', area * rate.insulation]);
-    if (input.has('heat')) breakdown.push(['Тёплый пол', area * rate.heat]);
-    for (const [key, item] of Object.entries(fixed)) {
-      if (input.has(key)) breakdown.push(item);
+
+    // Собираем данные и отправляем на Django
+    const data = {
+      area: area,
+      material: materialMap[input.get('material')] || 'frame',
+      floors: Number(input.get('floors')),
+      insulation: input.has('insulation'),
+      warm_floor: input.has('heat'),
+      electricity: input.has('electric'),
+      water: input.has('water'),
+      septic: input.has('septic')
+    };
+
+    try {
+      // 3. Стучимся к нашему API
+      const response = await fetch('http://127.0.0.1:8000/api/constructor/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      
+      const result = await response.json();
+
+      // 4. Отрисовываем чек, который прислал сервер
+      for (const item of result.breakdown) {
+        const term = document.createElement('dt');
+        const amount = document.createElement('dd');
+        term.textContent = item.label;
+        amount.textContent = money.format(item.value);
+        lines.append(term, amount);
+      }
+
+      total.textContent = money.format(result.total_price);
+      
+      const floorsText = data.floors === 1 ? ' этаж' : ' этажа';
+      summary.textContent = [area + ' м²', input.get('material'), data.floors + floorsText].join(' · ');
+      
+      // Формируем текст для заявки
+      const details = result.breakdown.map(item => item.label + ': ' + money.format(item.value));
+      if (input.has('gas')) details.push('Газ: стоимость уточняется');
+      
+      projectDescription = [summary.textContent, ...details, 'Итого: ' + total.textContent].join('\n');
+
+    } catch (error) {
+      console.error('Ошибка расчета:', error);
+      total.textContent = 'Ошибка сервера';
     }
-    let sum = 0;
-    for (const [label, value] of breakdown) {
-      sum += value;
-      const term = document.createElement('dt');
-      const amount = document.createElement('dd');
-      term.textContent = label;
-      amount.textContent = money.format(value);
-      lines.append(term, amount);
-    }
-    total.textContent = money.format(sum);
-    summary.textContent = [area + ' м²', material, floors + (floors === 1 ? ' этаж' : ' этажа')].join(' · ');
-    const details = breakdown.map(([label, value]) => label + ': ' + money.format(value));
-    if (input.has('gas')) details.push('Газ: стоимость уточняется');
-    projectDescription = [summary.textContent, ...details, 'Итого: ' + total.textContent].join('\n');
   }
 
-  form.addEventListener('input', calculate);
+  // 5. Запускаем расчет с небольшой задержкой
+  form.addEventListener('input', () => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(calculate, 300);
+  });
+  
   form.addEventListener('submit', event => event.preventDefault());
+  
   request.addEventListener('submit', event => {
     if (!form.reportValidity()) {
       event.preventDefault();
       event.stopImmediatePropagation();
     }
   }, true);
-  // Обработчик общей формы получает параметры вместе с комментарием клиента.
+  
   request.addEventListener('formdata', event => {
     const note = event.formData.get('comment') || '';
     event.formData.set('comment', [note.trim(), projectDescription].filter(Boolean).join('\n\n'));
   });
-  calculate();
+  
+  calculate(); // Первый расчет при загрузке страницы
 })();

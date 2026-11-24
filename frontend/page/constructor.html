@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Конструктор домов | Mega House</title>
+    <!-- Подключаем твои стили (обрати внимание на ../) -->
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <header class="site-header">
+      <div class="container header-inner">
+        <a class="brand" href="../index.html"><span class="brand-mark"></span>Mega House</a>
+        <nav id="site-menu">
+          <a href="../index.html">Главная</a>
+          <a href="catalog.html">Каталог</a>
+          <a href="constructor.html" aria-current="page">Конструктор</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="container block" style="margin-top: 40px;">
+        <span class="kicker">Калькулятор</span>
+        <h1>Рассчитайте стоимость дома</h1>
+        <p>Выберите параметры, и мы мгновенно посчитаем примерную стоимость.</p>
+
+        <div style="display: flex; gap: 40px; margin-top: 30px; flex-wrap: wrap;">
+            <!-- Форма параметров -->
+            <form id="calculator" style="flex: 1; min-width: 300px;">
+                <label>Площадь дома (м²)
+                    <input type="number" name="area" value="100" min="1" required>
+                </label>
+                
+                <label>Материал
+                    <select name="material">
+                        <option value="frame">Каркас</option>
+                        <option value="timber">Брус</option>
+                        <option value="gas">Газобетон</option>
+                        <option value="brick">Кирпич</option>
+                    </select>
+                </label>
+
+                <label>Этажность
+                    <select name="floors">
+                        <option value="1">1 этаж</option>
+                        <option value="2">2 этажа</option>
+                    </select>
+                </label>
+
+                <fieldset style="margin-top: 15px; border: 1px solid #ccc; padding: 10px;">
+                    <legend>Опции</legend>
+                    <label><input type="checkbox" name="insulation"> Утепление</label><br>
+                    <label><input type="checkbox" name="heat"> Тёплый пол</label><br>
+                    <label><input type="checkbox" name="electric"> Электричество (+150 000 ₽)</label><br>
+                    <label><input type="checkbox" name="water"> Вода (+250 000 ₽)</label><br>
+                    <label><input type="checkbox" name="septic"> Септик (+200 000 ₽)</label><br>
+                    <label><input type="checkbox" name="gas"> Газ (по запросу)</label>
+                </fieldset>
+            </form>
+
+            <!-- Блок с результатом (чек) -->
+            <div style="flex: 1; min-width: 300px; background: #f9f9f9; padding: 20px; border-radius: 8px;">
+                <h2>Ваш расчет</h2>
+                <p id="project-summary" style="color: #666; margin-bottom: 15px;"></p>
+                
+                <dl id="estimate-lines" style="display: grid; grid-template-columns: 1fr auto; gap: 10px; margin-bottom: 20px;">
+                    <!-- Сюда будут выводиться строки чека -->
+                </dl>
+                
+                <hr style="margin: 20px 0; border: none; border-top: 2px solid #ddd;">
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 24px; font-weight: bold;">
+                    <span>Итого:</span>
+                    <span id="estimate">0 ₽</span>
+                </div>
+                
+                <button class="button" style="width: 100%; margin-top: 20px;">Оставить заявку на этот проект</button>
+                <p id="gas-note" hidden style="color: red; font-size: 14px; margin-top: 10px;">Стоимость подключения газа уточняйте у менеджера.</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Подключаем наш JS (я вставил его прямо сюда для удобства) -->
+    <script>
+    (() => {
+      const form = document.getElementById('calculator');
+      const total = document.getElementById('estimate');
+      const summary = document.getElementById('project-summary');
+      const lines = document.getElementById('estimate-lines');
+      const money = new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 });
+
+      const materialMap = {
+        'Каркас': 'frame', 'Брус': 'timber', 'Газобетон': 'gas', 'Кирпич': 'brick'
+      };
+      
+      let timeoutId;
+
+      async function calculate() {
+        const input = new FormData(form);
+        const area = Number(input.get('area'));
+        
+        lines.replaceChildren();
+        document.getElementById('gas-note').hidden = !input.has('gas');
+        
+        if (!(area > 0)) {
+          total.textContent = 'Укажите площадь';
+          summary.textContent = '';
+          return;
+        }
+
+        // Получаем английский ключ материала из селекта
+        let selectedMaterial = input.get('material'); 
+
+        const data = {
+          area: area,
+          material: selectedMaterial,
+          floors: Number(input.get('floors')),
+          insulation: input.has('insulation'),
+          warm_floor: input.has('heat'),
+          electricity: input.has('electric'),
+          water: input.has('water'),
+          septic: input.has('septic')
+        };
+
+        try {
+          const response = await fetch('http://127.0.0.1:8000/api/constructor/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+          });
+          
+          const result = await response.json();
+
+          for (const item of result.breakdown) {
+            const term = document.createElement('dt');
+            const amount = document.createElement('dd');
+            term.textContent = item.label;
+            amount.textContent = money.format(item.value);
+            lines.append(term, amount);
+          }
+
+          total.textContent = money.format(result.total_price);
+          
+          const floorsText = data.floors === 1 ? ' этаж' : ' этажа';
+          // Красивое название материала
+          const matName = Object.keys(materialMap).find(key => materialMap[key] === selectedMaterial);
+          summary.textContent = [area + ' м²', matName, data.floors + floorsText].join(' · ');
+
+        } catch (error) {
+          console.error('Ошибка расчета:', error);
+          total.textContent = 'Ошибка сервера';
+        }
+      }
+
+      form.addEventListener('input', () => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(calculate, 300);
+      });
+      
+      form.addEventListener('submit', event => event.preventDefault());
+      
+      calculate(); 
+    })();
+    </script>
+</body>
+</html>

@@ -92,7 +92,7 @@
     if (!pending) {
       pending = location.protocol === 'file:'
         ? Promise.resolve(demoHouses)
-        : fetch('/api/houses', { headers: { Accept: 'application/json' } })
+        : fetch('http://127.0.0.1:8000/api/houses/', { headers: { Accept: 'application/json' } })
           .then(response => {
             if (!response.ok) throw new Error('Каталог недоступен');
             return response.json();
@@ -114,6 +114,9 @@
 
   function imagePath(path, prefix = '../') {
     if (!path) return '';
+     if (path.startsWith('http')) return path; 
+    
+    if (path.startsWith('/media/')) return path;
     // Загруженные менеджером файлы отдаёт локальный сервер.
     if (path.startsWith('/media/')) return path;
     if (path.startsWith('images/')) return prefix + path;

@@ -14,3 +14,11 @@ class Lead(models.Model):
     status = models.CharField("Статус", max_length=20, choices=STATUS_CHOICES, default='new')
     consent = models.BooleanField("Согласие", default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+
+class Visit(models.Model):
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Визит {self.ip_address} в {self.created_at}"

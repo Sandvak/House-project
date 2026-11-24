@@ -68,7 +68,8 @@ for (const form of document.querySelectorAll('.lead-form')) {
     button.disabled = true;
     try {
       const lead = Object.fromEntries(new FormData(form));
-      lead.agree = form.elements.agree.checked;
+     lead.consent = form.elements.agree.checked;
+    lead.type = "consult";
       const response = await fetch('/api/leads', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(lead)
       });

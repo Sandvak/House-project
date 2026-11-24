@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Каталог домов | Mega House</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        /* Немного стилей для сетки и фильтров, чтобы выглядело аккуратно */
+        .catalog-layout { display: flex; gap: 30px; margin-top: 30px; flex-wrap: wrap; }
+        .filters { flex: 1; min-width: 250px; background: #f9f9f9; padding: 20px; border-radius: 8px; height: fit-content; }
+        .filters label { display: block; margin-bottom: 15px; font-weight: 500; }
+        .filters input, .filters select { width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px; }
+        .catalog-grid { flex: 3; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; min-width: 300px; }
+        
+        .house-card { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1); display: flex; flex-direction: column; }
+        .house-card img { width: 100%; height: 200px; object-fit: cover; background: #eee; }
+        .house-info { padding: 15px; flex-grow: 1; display: flex; flex-direction: column; }
+        .house-price { font-size: 20px; font-weight: bold; color: #172c28; margin-bottom: 10px; }
+        .house-title { font-size: 16px; margin-bottom: 10px; }
+        .house-specs { color: #666; font-size: 14px; margin-bottom: 15px; }
+        .house-btn { margin-top: auto; text-align: center; background: #172c28; color: #fff; text-decoration: none; padding: 10px; border-radius: 4px; }
+        .house-btn:hover { background: #2c4a45; }
+    </style>
+</head>
+<body>
+    <header class="site-header">
+      <div class="container header-inner">
+        <a class="brand" href="../index.html"><span class="brand-mark"></span>Mega House</a>
+        <nav id="site-menu">
+          <a href="../index.html">Главная</a>
+          <a href="catalog.html" aria-current="page">Каталог</a>
+          <a href="constructor.html">Конструктор</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="container block" style="margin-top: 40px;">
+        <span class="kicker">Недвижимость</span>
+        <h1>Каталог домов</h1>
+
+        <div class="catalog-layout">
+            <!-- Панель фильтров -->
+            <aside class="filters">
+                <h3>Фильтры</h3>
+                <form id="filter-form">
+                    <label>Цена от (₽)
+                        <input type="number" name="price_min" placeholder="Например, 5000000">
+                    </label>
+                    <label>Цена до (₽)
+                        <input type="number" name="price_max" placeholder="Например, 10000000">
+                    </label>
+                    <label>Площадь от (м²)
+                        <input type="number" name="area_min" placeholder="Например, 100">
+                    </label>
+                    <label>Комнат
+                        <select name="rooms">
+                            <option value="">Любое</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5+</option>
+                        </select>
+                    </label>
+                    <label>Материал
+                        <select name="house_type">
+                            <option value="">Любой</option>
+                            <option value="frame">Каркас</option>
+                            <option value="timber">Брус</option>
+                            <option value="gas">Газобетон</option>
+                            <option value="brick">Кирпич</option>
+                        </select>
+                    </label>
+                    <button type="submit" class="button" style="width: 100%;">Применить</button>
+                </form>
+            </aside>
+
+            <!-- Сетка с домами -->
+            <div class="catalog-grid" id="catalog-grid">
+                <p id="loading">Загрузка каталога...</p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const form = document.getElementById('filter-form');
+        const grid = document.getElementById('catalog-grid');
+        const money = new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 });
+
+        async function loadHouses() {
+            grid.innerHTML = '<p>Загрузка...</p>';
+            
+            // Собираем данные из формы фильтров
+            const formData = new FormData(form);
+            const params = new URLSearchParams();
+            
+            // Добавляем в URL только те поля, которые заполнены
+            for (const [key, value] of formData.entries()) {
+                if (value.trim() !== '') {
+                    params.append(key, value);
+                }
+            }
+
+            try {
+                // Отправляем запрос к нашему API с фильтрами
+                const response = await fetch(`http://127.0.0.1:8000/api/houses/?${params.toString()}`);
+                const houses = await response.json();
+
+                grid.innerHTML = ''; // Очищаем
+
+                // Пустое состояние (по ТЗ п. 5.2)
+                if (houses.length === 0) {
+                    grid.innerHTML = '<p style="grid-column: 1/-1; font-size: 18px;">Ничего не найдено, попробуйте изменить фильтры.</p>';
+                    return;
+                }
+
+                // Рисуем карточки
+                houses.forEach(house => {
+                    const card = document.createElement('article');
+                    card.className = 'house-card';
+                    
+                    let imageUrl = house.image || '../images/hero.webp'; // Если фото нет, ставим заглушку
+
+                    card.innerHTML = `
+                        <img src="${imageUrl}" alt="Дом ${house.title}">
+                        <div class="house-info">
+                            <div class="house-price">${money.format(house.price)}</div>
+                            <div class="house-title"><strong>Дом «${house.title}»</strong></div>
+                            <div class="house-specs">
+                                ${house.area} м² · ${house.rooms} комн. · ${house.floors} эт.<br>
+                                <span style="color:#999">${house.material}</span>
+                            </div>
+                            <a href="house.html?id=${house.id}" class="house-btn">Подробнее</a>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                });
+
+            } catch (error) {
+                console.error(error);
+                grid.innerHTML = '<p style="color:red">Ошибка загрузки данных.</p>';
+            }
+        }
+
+        // Слушаем отправку формы
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            loadHouses();
+        });
+
+        // Загружаем при открытии страницы
+        loadHouses();
+    </script>
+</body>
+</html>
