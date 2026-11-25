@@ -70,7 +70,7 @@ for (const form of document.querySelectorAll('.lead-form')) {
       const lead = Object.fromEntries(new FormData(form));
      lead.consent = form.elements.agree.checked;
     lead.type = "consult";
-      const response = await fetch('/api/leads', {
+      const response = await fetch('http://127.0.0.1:8000/api/leads/', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(lead)
       });
       if (!response.headers.get('content-type')?.includes('application/json')) {
@@ -92,7 +92,7 @@ async function updatePageText() {
   const paragraphs = document.querySelectorAll('[data-content]');
   if (!isServer || !paragraphs.length) return;
   try {
-    const response = await fetch('/api/content');
+    const response = await fetch('http://127.0.0.1:8000/api/leads/');
     if (!response.ok) return;
     const changes = await response.json();
     for (const paragraph of paragraphs) {

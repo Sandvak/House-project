@@ -26,6 +26,7 @@ class HouseViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class ConstructorCalculateView(APIView):
+    authentication_classes = []
     def post(self, request):
         area = float(request.data.get('area', 0))
         material = request.data.get('material', 'frame')
@@ -35,6 +36,7 @@ class ConstructorCalculateView(APIView):
         electricity = request.data.get('electricity', False)
         water = request.data.get('water', False)
         septic = request.data.get('septic', False)
+        
 
         prices = {
             'frame': {'name': 'Каркас', 'base': 25000, 'warm': 3500, 'insul': 3000},

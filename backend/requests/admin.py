@@ -3,4 +3,4 @@ from .models import Lead
 
 @admin.register(Lead)
 class LeadAdmin(admin.ModelAdmin):
-    pass
+    list_display = ('name', 'phone', 'status', 'created_at')
