@@ -12,14 +12,14 @@ load_dotenv(BASE_DIR / '.env')
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-qfenvefkkq(e4aup1i^cf0u_-lq#(t_*tzhp&y2ty1vt7u#%qe'
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-default-key-if-env-fails')
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# Разрешенные хосты
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
 
-ALLOWED_HOSTS = []
-
-
+# Ключ для проверки капчи на бэкенде
+RECAPTCHA_SECRET_KEY = os.getenv('RECAPTCHA_SECRET_KEY')
 # Application definition
 
 INSTALLED_APPS = [

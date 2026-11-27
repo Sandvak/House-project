@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="css/style.css">
     <script defer src="js/houses.js"></script>
     <script defer src="js/site.js"></script>
+    <script src="https://www.google.com/recaptcha/api.js?hl=ru" async defer></script>
   </head>
   <body>
     <a class="skip" href="#main">К содержанию</a>
@@ -145,7 +146,7 @@
             <h2>Обсудим ваш будущий дом?</h2>
             <p>Расскажите, какой дом ищете. Менеджер поможет сравнить варианты и подобрать время для просмотра.</p>
           </div>
-          <form class="lead-form" method="post">
+          <form id="leadform" class="lead-form">
             <input type="hidden" name="request_type" value="consultation">
             <div class="form-grid">
               <label>Ваше имя<input type="text" name="name" autocomplete="name" required maxlength="90">
@@ -163,6 +164,11 @@
               <span>Я принимаю <a href="page/consent.html">условия обработки данных</a>
               </span>
             </label>
+                        <!-- ВОТ СЮДА ВСТАВЛЯЕМ КАПЧУ -->
+            <!-- Не забудь заменить ВАШ_КЛЮЧ_САЙТА на ключ из Google! -->
+            <div class="g-recaptcha" data-sitekey="6LcC5DUuAAAAAG6Ga0ik3XAFYunSvdibjkayFHo7" style="margin-bottom: 15px;"></div>
+            
+            
             <button class="button" type="submit">Отправить заявку</button>
             <p role="status" class="form-status"></p>
           </form>
@@ -213,5 +219,74 @@
         </form>
       </dialog>
     </footer>
+    <script>
+document.addEventListener("DOMContentLoaded", function() {
+    const form = document.querySelector('.lead-form');
+    const statusMessage = document.querySelector('.form-status'); 
+
+    if (!form) return;
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault(); // Останавливаем перезагрузку
+        
+        const recaptchaToken = grecaptcha.getResponse();
+        if (!recaptchaToken) {
+            alert('Поставьте галочку "Я не робот"');
+            return;
+        }
+
+        // Собираем данные из формы
+        const payload = {
+            name: form.querySelector('input[name="name"]').value,
+            phone: form.querySelector('input[name="phone"]').value,
+            email: form.querySelector('input[name="email"]').value,
+            comment: form.querySelector('textarea[name="comment"]').value,
+            type: "consult",
+            consent: form.querySelector('input[name="agree"]').checked,
+            recaptcha_token: recaptchaToken
+        };
+
+        const btn = form.querySelector('button[type="submit"]');
+        btn.innerText = 'Отправка...';
+        btn.disabled = true;
+        if(statusMessage) statusMessage.innerText = "";
+
+        // Стучимся в Django
+        fetch('http://127.0.0.1:8000/api/leads/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+        .then(res => {
+            if(res.ok) {
+                // Если код 200 или 201 - всё ок!
+                if(statusMessage) {
+                    statusMessage.style.color = "green";
+                    statusMessage.innerText = "Спасибо! Заявка отправлена.";
+                } else {
+                    alert('Спасибо! Заявка отправлена.');
+                }
+                form.reset(); 
+                grecaptcha.reset(); 
+            } else {
+                // Если ошибка - показываем её
+                return res.json().then(err => { throw err; });
+            }
+        })
+        .catch(err => {
+            console.error("Ошибка:", err);
+            if(statusMessage) {
+                statusMessage.style.color = "red";
+                statusMessage.innerText = "Ошибка при отправке";
+            }
+        })
+        .finally(() => {
+            btn.innerText = 'Отправить заявку';
+            btn.disabled = false;
+        });
+    });
+});
+</script>
+</script>
   </body>
 </html>

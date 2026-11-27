@@ -54,6 +54,16 @@ for (const form of document.querySelectorAll('.lead-form')) {
   const status = form.querySelector('[role="status"]');
   phone.addEventListener('input', () => phone.setCustomValidity(''));
   form.addEventListener('submit', async event => {
+    event.preventDefault(); // Останавливаем перезагрузку
+
+        // Проверяем капчу
+        const recaptchaToken = grecaptcha.getResponse();
+        
+        // Если галочка не стоит — выводим ошибку и останавливаем отправку
+        if (!recaptchaToken) {
+            alert("Пожалуйста, поставьте галочку 'Я не робот' перед отправкой.");
+            return; // Выходим из функции, дальше код не пойдет
+        }
     event.preventDefault();
     if (!validatePhone(phone)) {
       phone.reportValidity();
@@ -70,6 +80,7 @@ for (const form of document.querySelectorAll('.lead-form')) {
       const lead = Object.fromEntries(new FormData(form));
      lead.consent = form.elements.agree.checked;
     lead.type = "consult";
+    lead.recaptcha_token = recaptchaToken;
       const response = await fetch('http://127.0.0.1:8000/api/leads/', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(lead)
       });
