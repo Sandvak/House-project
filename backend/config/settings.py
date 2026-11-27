@@ -1,8 +1,11 @@
 
 from pathlib import Path
+from dotenv import load_dotenv
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / '.env')
 
 
 # Quick-start development settings - unsuitable for production
@@ -35,7 +38,7 @@ INSTALLED_APPS = [
     # Наши приложения
     'users',
     'houses',
-    'requests',
+    'requests.apps.RequestsConfig',
 ]
 
 MIDDLEWARE = [
@@ -120,10 +123,20 @@ STATIC_URL = 'static/'
 
 MAILERS = {
     'default': {
-        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
+        'BACKEND': 'django.core.mail.backends.smtp.EmailBackend',
+        # Настройки подключения прячем внутрь OPTIONS
+        'OPTIONS': {
+            'host': 'smtp.yandex.ru',
+            'port': 465,
+            'username': os.getenv('EMAIL_HOST_USER'),
+            'password': os.getenv('EMAIL_HOST_PASSWORD'),
+            'use_ssl': True,
+        },
     },
 }
 
+# Эта настройка должна быть на уровне всего файла (вне MAILERS)
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL')
 
 AUTH_USER_MODEL = 'users.User'
 
@@ -144,3 +157,5 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.AllowAny',
     ],
 }
+
+# Пока пишем письма в консоль (терминал), а не на реальную почту
